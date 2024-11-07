@@ -1,0 +1,4 @@
+Tools needed: Dobot machine, 2 containers, green and blue and red cubes, color sensor, photoelectric sensor, button, suction cup, conveyer
+Task purpose: After the button is pressed, the conveyer starts to convey the cubes, the machine will identify the first cube regardless 
+which color it is as product, the other color as waste. Then it sorts the prod to the prod container, the other into the waster container. 
+To the end, the screen gonna output the sum of the prod and waste
