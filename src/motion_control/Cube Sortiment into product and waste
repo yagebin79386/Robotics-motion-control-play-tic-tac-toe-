@@ -1,0 +1,149 @@
+# Import necessary libraries
+import time
+from DobotDLL import dType  # Ensure you have the Dobot SDK installed and accessible
+
+# Initialize the Dobot API
+api = dType.Load()  # Initialize the connection to the Dobot device
+
+# Global variables initialization
+x = None
+y = None
+z = None
+r = None
+g = None
+b = None
+count_r = None
+count_g = None
+count_b = None
+waste = None
+currrent_color = None
+Prod = None
+home_x = None
+home_y = None
+home_z = None
+
+# Function to print the counts and waste
+def print2():
+    global count_r, count_b, count_g, Prod, waste
+    print('----------------------------------------')
+    print('Color counts: red, blue, green  ', count_r, count_b, count_g)
+    print('Product number is:', Prod)
+    if Prod == 1:
+        print('Red count:', count_r)
+        print('The waste is:', (count_b + count_g) + waste)
+    elif Prod == 2:
+        print('Green count:', count_g)
+        print('The waste is:', (count_r + count_b) + waste)
+    else:
+        print('Blue count:', count_b)
+        print('The waste is:', (count_r + count_g) + waste)
+
+# Function to set up the robot's initial parameters and sensors
+def set_up():
+    global Prod, count_r, count_g, count_b, waste, home_x, home_y, home_z
+    dType.SetEndEffectorParamsEx(api, 59.7, 0, 0, 1)
+    dType.SetInfraredSensor(api, 1, 3, 1)
+    dType.SetInfraredSensor(api, 1, 2, 1)
+    dType.SetPTPJumpParamsEx(api, 20, 100, 1)
+    
+    # Initialize all necessary global variables
+    Prod = 0
+    count_r = 0
+    count_g = 0
+    count_b = 0
+    waste = 0
+    home_x = 253.898
+    home_y = 11.621
+    home_z = 135.3884
+
+# Function to read the photosensor (infrared sensor 3)
+def photosensor():
+    return dType.GetInfraredSensor(api, 3)[0]  # Return the value of sensor 3
+
+# Function to check the detected color and set the product type
+def color_check():
+    global r, g, b, currrent_color, Prod
+    dType.SetColorSensor(api, 1, 1, 1)
+    time.sleep(1)  # Delay for sensor reading stabilization
+    
+    # Read the color sensor values (RGB)
+    r = dType.GetColorSensorEx(api, 0)
+    g = dType.GetColorSensorEx(api, 1)
+    b = dType.GetColorSensorEx(api, 2)
+    
+    # Determine the most prominent color (red=1, green=2, blue=3)
+    currrent_color = max([r * 1, g * 2, b * 3])
+    dType.SetColorSensor(api, 0, 1, 1)  # Reset color sensor
+    
+    if Prod == 0:
+        Prod = currrent_color  # Set product type based on detected color
+
+# Function to get the coordinates based on the detected color
+def get_coordinates():
+    global currrent_color, Prod, x, y, z
+    if currrent_color == Prod:
+        x = 110.8184
+        y = -209.5332
+        z = 28.288
+    else:
+        x = 105.5011
+        y = 195.9613
+        z = 24.6206
+
+# Function to perform pick-and-check operation (pick item with suction cup)
+def pick_and_check():
+    dType.SetPTPCmdEx(api, 0, 230.3866, -71.8092, 11.4657, 0, 1)
+    dType.SetEndEffectorSuctionCupEx(api, 1, 1)  # Activate suction cup to pick
+    dType.SetPTPCmdEx(api, 0, 297.6839, -41.9456, 18.3578, 0, 1)
+
+# Function to count the items based on color detection
+def count_by_color():
+    global currrent_color, count_r, count_g, count_b, waste
+    if currrent_color == 1:
+        count_r += 1  # Increment red count
+    elif currrent_color == 2:
+        count_g += 1  # Increment green count
+    elif currrent_color == 3:
+        count_b += 1  # Increment blue count
+    else:
+        waste += 1  # Increment waste count for unknown colors
+
+# Function to move the item to the trash
+def move_to_trash():
+    global x, y, z
+    get_coordinates()  # Update coordinates based on detected color
+    dType.SetPTPCmdEx(api, 0, x, y, z, 0, 1)  # Move to trash position
+    dType.SetEndEffectorSuctionCupEx(api, 0, 1)  # Deactivate suction cup (drop item)
+
+# Main program
+set_up()  # Set up the robot's initial state
+
+# Wait for the photosensor to detect an object (sensor 2)
+while (dType.GetInfraredSensor(api, 2)[0]) == 0:
+    pass  # Keep checking until an object is detected
+
+# Main loop: Continuously perform actions
+while True:
+    current_pose = dType.GetPose(api)  # Get current pose of the robot
+    dType.SetPTPCmdEx(api, 2, home_x, home_y, home_z, current_pose[3], 1)  # Return to home position
+    
+    # Wait for the photosensor to detect an object (sensor 3)
+    while photosensor() != 1:
+        STEP_PER_CRICLE = 360.0 / 1.8 * 10.0 * 16.0  # Steps per circle for motor
+        MM_PER_CRICLE = 3.1415926535898 * 36.0  # MM per circle
+        vel = 50 * STEP_PER_CRICLE / MM_PER_CRICLE  # Calculate motor velocity
+        dType.SetEMotorEx(api, 0, 1, int(vel), 1)  # Activate motor to keep moving
+        
+    # Stop the motor after object detection
+    vel = 0 * STEP_PER_CRICLE / MM_PER_CRICLE  # Stop velocity
+    dType.SetEMotorEx(api, 0, 0, int(vel), 1)  # Deactivate motor
+
+    # Perform pick, check, move to trash, count, and print results
+    pick_and_check()
+    color_check()
+    move_to_trash()
+    count_by_color()
+    print2()  # Print the counts and waste
+
+# Optionally: Clean up and release the Dobot API connection when done
+dType.Release(api)
