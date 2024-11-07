@@ -1,0 +1,5 @@
+1. The tools you need: The Dobot machine, the conveyer, the photoelectric sensor, the color sensor, the green/blue/red sponge cube and the 3 containers with the 
+3 different colors, start button, the plastic direction adjuster (optional)
+
+2. The purpose: As the script starts running, conveyer should wait until one clicks the button, the conveyers start to move and the machine can identify the color 
+the cube and the machine picks it up from conveyer and drop it to the corresponding container with same color
