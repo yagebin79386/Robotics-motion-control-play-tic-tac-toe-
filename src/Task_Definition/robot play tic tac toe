@@ -1,0 +1,7 @@
+1. The assecorries demanded: the Dobot machine, the suction cup, the photoelectric sensor, the button, for red and blue each 5 cubes of it,
+the color sensor, 9 squre grid 
+
+2. You need to write the code to let the robot firstly check if the other robot is at home (through photoelectric sensor check), and then if
+you press the button, the robot starts to move out from base to check the chessboard and do the chess drop.
+So the robot need to identify which square is taken, by which party and then makes its decision to make the move and the move back to the 
+base just like how we play the tic tac toe. 
