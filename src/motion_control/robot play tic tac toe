@@ -1,0 +1,259 @@
+
+##initial variable creation
+ith_positoin = None
+base_x = None
+co_x = None
+count_1 = None
+temp_value = None
+corner_position_list = None
+row_index = None
+base_y = None
+co_y = None
+Home_position = None
+count_2 = None
+i = None
+column_index = None
+base_z = None
+co_z = None
+identified_color = None
+count_3 = None
+drop_position = None
+position_status = None
+identified_color_index = None
+x = None
+temp_list_3 = None
+Button_status = None
+y = None
+m = None
+position_index = None
+
+"""grant initial value for variables...
+"""
+def set_up():
+  global base_x, base_y, base_z, position_status, co_x, co_y, co_z, position_index, drop_position
+  base_x = 1.7749
+  base_y = 192.1006
+  base_z = -46.7206
+  position_status = [None, None, None, None, None, None, None, None, None]
+  co_x = 178.1457
+  co_y = 26.699
+  co_z = -38
+  position_index = 1
+  drop_position = 0
+
+"""motion to pick up from base...
+"""
+def pick_up():
+  global base_x, base_y, base_z
+  dType.SetEndEffectorParamsEx(api, 59.7, 0, 0, 1)
+  dType.SetPTPCmdEx(api, 0, base_x,  base_y,  base_z, 0, 1)
+  dType.SetEndEffectorSuctionCupEx(api, 1, 1)
+
+"""motion to jump to taraget position...
+"""
+def jump_to():
+  global co_x, co_y, co_z, row_index, column_index
+  dType.SetEndEffectorParamsEx(api, 59.7, 0, 0, 1)
+  dType.SetPTPCmdEx(api, 0, co_x,  co_y,  co_z, 0, 1)
+  co_x = 178.1457 + column_index * 33
+  co_y = 26.69 + row_index * -33
+  dType.SetEndEffectorSuctionCupEx(api, 0, 1)
+
+"""start button and safty sensor check before start...
+"""
+def start_preparation_check():
+  global Home_position, Button_status
+  dType.SetInfraredSensor(api, 0 ,3, 1)
+  Home_position = dType.GetInfraredSensor(api, 3)[0]
+  while Home_position == 0:
+    pass
+  dType.SetInfraredSensor(api, 0 ,2, 0)
+  Button_status = dType.GetInfraredSensor(api, 2)[0]
+  while Button_status == 0:
+    pass
+
+"""scan all the position on cube to update status (own/opponent/empty)...
+"""
+def status_update():
+  global co_x, co_y, position_status, position_index, identified_color_index
+  co_x = 178.1457
+  co_y = 26.699
+  for count2 in range(3):
+    co_x = 178.1457
+    for count in range(3):
+      jump_to()
+      color_check()
+      position_status[int(position_index - 1)] = identified_color_index
+      position_index = position_index + 1
+      co_x = co_x + 33
+    co_y = co_y - 33
+
+def first_index(myList, elem):
+  try: theIndex = myList.index(elem) + 1
+  except: theIndex = 0
+  return theIndex
+
+"""check the color of the dumped cube on a certain position...
+"""
+def color_check():
+  global identified_color, identified_color_index
+  dType.SetColorSensor(api, 1 ,1, 1)
+  dType.dSleep(1000)
+  identified_color = [dType.GetColorSensorEx(api, 0), dType.GetColorSensorEx(api, 2), dType.GetColorSensorEx(api, 1)]
+  identified_color_index = first_index(identified_color, 1)
+  if identified_color_index == 1 or identified_color_index == 2:
+    pass
+  identified_color_index = 3
+  dType.SetColorSensor(api, 0 ,1, 1)
+
+"""check if there is any move on the row leads to win (either yourself or opponent)it prioritize the win position in the last row
+"""
+def horizontal_win_check():
+  global count_1, count_2, count_3, x, temp_list_3, m, position_status, drop_position
+  count_1 = 0
+  count_2 = 0
+  count_3 = 0
+  x = 1
+  temp_list_3 = [None, None, None]
+  for count3 in range(2):
+    for m in position_status[int(x - 1) : int((x + 2))]:
+      if position_status[int(m - 1)] == 1:
+        count_1 = count_1 + 1
+      elif position_status[int(m - 1)] == 2:
+        count_2 = count_2 + 1
+    if count_1 == 2 or count_2 == 2:
+      drop_position = first_index(temp_list_3, 3) + x
+    x = x + 3
+  print(temp_list_3)
+
+"""convert the ith indexed position in the position list to the row & column index on the chessboard...
+"""
+def converter_from_position_to_coordinate(ith_positoin):
+  global row_index, column_index
+  row_index = ith_positoin % 3
+  column_index = (ith_positoin - ith_positoin % 3) / 3 + 1
+
+"""check if there is any move on the column leads to win (either yourself or opponent)it prioritize the win position in the last row
+"""
+def vertical_win_check():
+    global count_1, count_2, x, temp_list_3, position_status, drop_position
+    for col in range(3):  # Check each column
+        count_1 = count_2 = 0
+        temp_list_3 = [position_status[col], position_status[col + 3], position_status[col + 6]]
+        for m in temp_list_3:
+            if m == 1:
+                count_1 += 1
+            elif m == 2:
+                count_2 += 1
+        if count_1 == 2 or count_2 == 2:
+            drop_position = first_index(temp_list_3, None) * 3 + col
+    print("Vertical Check:", temp_list_3)
+
+
+"""check if there is any move on the diagonal leads to win (either yourself or opponent)it prioritize the win position in the last row
+"""
+def diagonal_win_check():
+    global count_1, count_2, temp_list_3, position_status, drop_position
+    # Check the two diagonals
+    diagonals = [[position_status[1], position_status[5], position_status[9]], 
+                 [position_status[3], position_status[5], position_status[7]]]
+    for i, diag in enumerate(diagonals):
+        count_1 = count_2 = 0
+        temp_list_3 = diag
+        for m in temp_list_3:
+            if m == 1:
+                count_1 += 1
+            elif m == 2:
+                count_2 += 1
+        if count_1 == 2 or count_2 == 2:
+            drop_position = first_index(temp_list_3, None) * 4 + (0 if i == 0 else 2)
+    print("Diagonal Check:", temp_list_3)
+
+
+"""check if the central position is occupied, if not set that as position to drop"""
+def check_central_position():
+    global drop_position, position_status
+    # Check if the center position (index 4 in a 3x3 grid) is empty
+    if position_status[4] == 0:
+        drop_position = 4
+    print("Center Check:", "Occupied" if position_status[4] != 0 else "Empty")
+
+"""check if the corner position is occupied, if not set that as position to drop (prioritize the right lower corner)"""
+def check_corner_positions():
+    global drop_position, position_status
+    # Define corner positions on a 3x3 grid
+    corners = [1, 3, 7, 9]
+    for corner in corners:
+        if position_status[corner] == 0:
+            drop_position = corner
+            print("Corner Check: First available corner at position", drop_position)
+            return
+    print("Corner Check: No available corners")
+
+"""check if the edge position is occupied, if not set that as position to drop (prioritize the middle lower edge)"""
+def check_edge_positions():
+    global drop_position, position_status
+    # Define edge positions on a 3x3 grid
+    edges = [2, 4, 6, 8]
+    for edge in edges:
+        if position_status[edge] == 0:
+            drop_position = edge
+            print("Edge Check: First available edge at position", drop_position)
+            return
+    print("Edge Check: No available edges")
+
+
+
+"""
+    Determines the optimal drop position for the next move.
+    Checks for winning moves first, then falls back to center, corners, and edges.
+    If all are occupied, prints "game is over."
+    """
+def determine_drop_position():
+    
+    global drop_position
+
+    # Check for any winning moves in rows, columns, or diagonals
+    horizontal_win_check()
+    if drop_position is not None:
+        print("Winning move found in horizontal check.")
+        return
+
+    vertical_win_check()
+    if drop_position is not None:
+        print("Winning move found in vertical check.")
+        return
+
+    diagonal_win_check()
+    if drop_position is not None:
+        print("Winning move found in diagonal check.")
+        return
+
+    # No winning move found; proceed with center, corners, and edges
+    check_central_position()
+    if drop_position is not None:
+        print("Central position available.")
+        return
+
+    check_corner_positions()
+    if drop_position is not None:
+        print("Corner position available.")
+        return
+
+    check_edge_positions()
+    if drop_position is not None:
+        print("Edge position available.")
+        return
+
+    # If no positions are available
+    print("Game is over.")
+
+# Initialize all necessary variables and statuses as defined in your setup
+set_up()
+
+# Example usage of determine_drop_position function
+determine_drop_position()
+print("Final Drop Position:", drop_position)
+
+
+                                                  
