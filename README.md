@@ -8,4 +8,8 @@ Doing the exercise to understand the robotic motion's principle and learn about 
 2.2 Sticky band, sponge cubes in at least blue, green, red color, and 5 pieces at least for each color, the white paper, the pastic holders.
 3. install the Dobot SDK on Windows system, please check the seperate file "Install the Dobot SDK on Windows"
 
-   
+## The task definition
+It can be found in the folder "src/task definition", which gradually increase the dificulty, the final step is to program with Python to let robot play tic tac toe game
+## The coding solution
+It can be found in the folder "src/solution"
+
